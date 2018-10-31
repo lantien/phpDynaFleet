@@ -89,17 +89,30 @@ function sumBetweenWeeks($firstReport, $secondReport) {
 
 function sumStatsChunk($rawReport) {
 
+  $arrayBundleStats = array();
+
+
+  $tempDriverStats = new stdClass();
 
   $arrayStats = array();
 
     foreach($rawReport as $rawValues) {
-      $sumStats = new stdClass();
 
-      $sumStats->vehicleId = $rawValues->vehicleId->id;
+      $sumStats = new stdClass();
 
         if(property_exists($rawValues, 'dataEntries')) {
 
           foreach($rawValues->dataEntries as $iterator=>$data) {
+
+            if(!is_null($data->driverId)) {
+
+              $tempDriverId = $data->driverId->id;
+            }
+
+            if(isset($tempDriverId) && !property_exists($tempDriverStats, $tempDriverId)) {
+
+              $tempDriverStats->{$tempDriverId} = new stdClass();
+            }
 
             if(is_object($data)) {
 
@@ -107,6 +120,17 @@ function sumStatsChunk($rawReport) {
 
                 if($key != 'driverId' && $key != 'startTime' && $key != 'endTime' &&
                 is_object($value) && property_exists($value, 'value')) {
+
+                  if(isset($tempDriverId)) {
+
+                    if(!property_exists($tempDriverStats->$tempDriverId, $key)) {
+
+                      $tempDriverStats->$tempDriverId->{$key} = $value->value;
+                    } else {
+
+                      $tempDriverStats->$tempDriverId->{$key} += $value->value;
+                    }
+                  }
 
                   if(!property_exists($sumStats, $key)) {
 
@@ -123,81 +147,105 @@ function sumStatsChunk($rawReport) {
 
           }
         }
+
       $arrayStats[] = $sumStats;
     }
 
+  $arrayBundleStats[] = $arrayStats;
+  $arrayBundleStats[] = $tempDriverStats;
 
-  return $arrayStats;
 
+  return $arrayBundleStats;
+
+}
+
+function sumBetweenWeeksObj( $firstWeekObj, $secondWeekObj) {
+
+  $weekStatsObj = $firstWeekObj;
+
+  foreach ($secondWeekObj as $key => $obj) {
+
+    foreach ($obj as $data => $value) {
+
+      $weekStatsObj->{$key}->{$data} += $value;
+    }
+  }
+
+  var_dump($weekStatsObj);
+
+  return $weekStatsObj;
 }
 
 $week_array = getStartAndEndDate(40,2018);
 
-//$iterator = 0;
-
 $firstReportArray = array();
 $secondReportArray = array();
 
-// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[0]->vehicleId->id, $iterator);
-// array_push($firstReportArray, $temp);
-//
-// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[1]->vehicleId->id, $iterator);
-// array_push($firstReportArray, $temp);
-//
-// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[2]->vehicleId->id, $iterator);
-// array_push($firstReportArray, $temp);
-//
-// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[3]->vehicleId->id, $iterator);
-// array_push($firstReportArray, $temp);
+$iterator = 0;
 
-////////////////SECOND PART OF THE week_end
-// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[0]->vehicleId->id, $iterator);
-// array_push($secondReportArray, $temp);
-//
-// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[1]->vehicleId->id, $iterator);
-// array_push($secondReportArray, $temp);
-//
-// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[2]->vehicleId->id, $iterator);
-// array_push($secondReportArray, $temp);
-//
-// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[3]->vehicleId->id, $iterator);
-// array_push($secondReportArray, $temp);
+$temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[0]->vehicleId->id, $iterator);
+array_push($firstReportArray, $temp);
 
-//var_dump(sumStatsChunk($firstReportArray));
+$temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[1]->vehicleId->id, $iterator);
+array_push($firstReportArray, $temp);
 
+$temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[2]->vehicleId->id, $iterator);
+array_push($firstReportArray, $temp);
+
+$temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[3]->vehicleId->id, $iterator);
+array_push($firstReportArray, $temp);
+
+//////////////SECOND PART OF THE week_end
+$temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[0]->vehicleId->id, $iterator);
+array_push($secondReportArray, $temp);
+
+$temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[1]->vehicleId->id, $iterator);
+array_push($secondReportArray, $temp);
+
+$temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[2]->vehicleId->id, $iterator);
+array_push($secondReportArray, $temp);
+
+$temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[3]->vehicleId->id, $iterator);
+array_push($secondReportArray, $temp);
+
+
+//var_dump(sumStatsChunk($firstReportArray)[1]);
+sumBetweenWeeksObj(sumStatsChunk($firstReportArray)[1], sumStatsChunk($secondReportArray)[1]);
+
+//var_dump(sumBetweenWeeks(sumStatsChunk($firstReportArray)[0], sumStatsChunk($secondReportArray)[0]));
+
+
+// $iterator = 0;
+//
+// foreach($vehicleList as &$value) {
+//
+//   if($iterator%$requestByToken==0 && $iterator != 0) {
+//
+//     $token = loginRequest($username, $password, $client, $iterator);
+//   }
+//
+//   $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $value->vehicleId->id, $iterator);
+//   array_push($firstReportArray, $temp);
+//   $iterator++;
+// }
+//
+// sleep(20);
+//
+// $iterator = 0;
+//
+// foreach($vehicleList as &$value) {
+//
+//   if($iterator%$requestByToken==0 && $iterator != 0) {
+//
+//     $token = loginRequest($username, $password, $client, $iterator);
+//   }
+//
+//   $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $value->vehicleId->id, $iterator);
+//   array_push($secondReportArray, $temp);
+//
+//   $iterator++;
+// }
+//TRUCK STATS
 //var_dump(sumBetweenWeeks(sumStatsChunk($firstReportArray), sumStatsChunk($secondReportArray)));
-
-$iterator = 0;
-
-foreach($vehicleList as &$value) {
-
-  if($iterator%$requestByToken==0 && $iterator != 0) {
-
-    $token = loginRequest($username, $password, $client, $iterator);
-  }
-
-  $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $value->vehicleId->id, $iterator);
-  array_push($firstReportArray, $temp);
-  $iterator++;
-}
-
-sleep(20);
-
-$iterator = 0;
-
-foreach($vehicleList as &$value) {
-
-  if($iterator%$requestByToken==0 && $iterator != 0) {
-
-    $token = loginRequest($username, $password, $client, $iterator);
-  }
-
-  $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $value->vehicleId->id, $iterator);
-  array_push($secondReportArray, $temp);
-
-  $iterator++;
-}
-
-var_dump(sumBetweenWeeks(sumStatsChunk($firstReportArray), sumStatsChunk($secondReportArray)));
 
 ?>
