@@ -1,6 +1,7 @@
 <?php
 
 ini_set('max_execution_time', 500);
+ini_set('memory_limit', '1024M'); // or you could use 1G
 
 $requestByToken = 19;
 
@@ -64,115 +65,139 @@ function getStartAndEndDate($week, $year) {
   return $ret;
 }
 
-// function makeStats($firstRawReport, $secondRawReport, $client) {
-//
-//   $truckStats = new stdClass();
-//
-//   for($i = 0; $i < count($firstRawReport); ++$i) {
-//     $tempVehicleId = $firstRawReport[$i]->vehicleId->id;
-//
-//     //$truckStats->{$tempVehicleId} = 'Here we go';
-//
-//      foreach($firstRawReport[$i]->dataEntries as $value) {
-//        foreach($value as $key=>$temp) {
-//
-//          $truckStats->{$tempVehicleId}->{$key} = $firstRawReport[$i]->dataEntries->{$key};
-//                                             //+ $secondRawReport[$i]->dataEntries->{$key};
-//        }
-//      }
-//   }
-//
-//   var_dump($truckStats);
-//
-//
-// }
+function sumBetweenWeeks($firstReport, $secondReport) {
+
+  $arrayStats = array();
+
+  for($i = 0; $i < count($firstReport); ++$i) {
+
+    $sumStats = new stdClass();
+
+    foreach ($firstReport[$i] as $key => $value) {
+      if(property_exists($firstReport[$i], $key)
+          && property_exists($secondReport[$i], $key)) {
+
+        $sumStats->{$key} = $firstReport[$i]->$key + $secondReport[$i]->$key;
+      }
+    }
+
+    $arrayStats[] = $sumStats;
+  }
+
+  return $arrayStats;
+}
 
 function sumStatsChunk($rawReport) {
 
-  $sumStats = new stdClass();
 
-  foreach($rawReport->dataEntries as $iterator=>$data) {
-    foreach($data as $key=>$value) {
+  $arrayStats = array();
 
-      if($key != 'driverId' && $key != 'startTime' && $key != 'endTime') {
-        if(!property_exists($sumStats, $key)) {
+    foreach($rawReport as $rawValues) {
+      $sumStats = new stdClass();
 
-          $sumStats->{$key} = $value->value;
-        } else {
+      $sumStats->vehicleId = $rawValues->vehicleId->id;
 
-          $sumStats->{$key} += $value->value;
+        if(property_exists($rawValues, 'dataEntries')) {
+
+          foreach($rawValues->dataEntries as $iterator=>$data) {
+
+            if(is_object($data)) {
+
+              foreach($data as $key=>$value) {
+
+                if($key != 'driverId' && $key != 'startTime' && $key != 'endTime' &&
+                is_object($value) && property_exists($value, 'value')) {
+
+                  if(!property_exists($sumStats, $key)) {
+
+                    $sumStats->{$key} = $value->value;
+                  } else {
+
+                    $sumStats->{$key} += $value->value;
+                  }
+
+                }
+
+              }
+            }
+
+          }
         }
-      }
-
+      $arrayStats[] = $sumStats;
     }
-  }
 
-  return $sumStats;
+
+  return $arrayStats;
 
 }
 
 $week_array = getStartAndEndDate(40,2018);
 
-var_dump($week_array);
-
-$iterator = 0;
+//$iterator = 0;
 
 $firstReportArray = array();
 $secondReportArray = array();
 
-$temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[0]->vehicleId->id, $iterator);
-array_push($firstReportArray, $temp);
-
-$temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[1]->vehicleId->id, $iterator);
-array_push($firstReportArray, $temp);
-
-$temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[2]->vehicleId->id, $iterator);
-array_push($firstReportArray, $temp);
-
-$temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[3]->vehicleId->id, $iterator);
-array_push($firstReportArray, $temp);
+// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[0]->vehicleId->id, $iterator);
+// array_push($firstReportArray, $temp);
+//
+// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[1]->vehicleId->id, $iterator);
+// array_push($firstReportArray, $temp);
+//
+// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[2]->vehicleId->id, $iterator);
+// array_push($firstReportArray, $temp);
+//
+// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[3]->vehicleId->id, $iterator);
+// array_push($firstReportArray, $temp);
 
 ////////////////SECOND PART OF THE week_end
-$temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[0]->vehicleId->id, $iterator);
-array_push($secondReportArray, $temp);
+// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[0]->vehicleId->id, $iterator);
+// array_push($secondReportArray, $temp);
+//
+// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[1]->vehicleId->id, $iterator);
+// array_push($secondReportArray, $temp);
+//
+// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[2]->vehicleId->id, $iterator);
+// array_push($secondReportArray, $temp);
+//
+// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[3]->vehicleId->id, $iterator);
+// array_push($secondReportArray, $temp);
 
-$temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[1]->vehicleId->id, $iterator);
-array_push($secondReportArray, $temp);
+//var_dump(sumStatsChunk($firstReportArray));
 
-$temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[2]->vehicleId->id, $iterator);
-array_push($secondReportArray, $temp);
+//var_dump(sumBetweenWeeks(sumStatsChunk($firstReportArray), sumStatsChunk($secondReportArray)));
 
-$temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[3]->vehicleId->id, $iterator);
-array_push($secondReportArray, $temp);
+$iterator = 0;
 
-var_dump(sumStatsChunk($secondReportArray[0]));
+foreach($vehicleList as &$value) {
 
-// $iterator = 0;
-//
-// foreach($vehicleList as &$value) {
-//
-//   if($iterator%$requestByToken==0 && $iterator != 0) {
-//
-//     $token = loginRequest($username, $password, $client, $iterator);
-//   }
-//
-//   reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $value->vehicleId->id, $iterator);
-//   $iterator++;
-// }
-//
-// sleep(20);
-//
-// $iterator = 0;
-//
-// foreach($vehicleList as &$value) {
-//
-//   if($iterator%$requestByToken==0 && $iterator != 0) {
-//
-//     $token = loginRequest($username, $password, $client, $iterator);
-//   }
-//
-//   reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $value->vehicleId->id, $iterator);
-//   $iterator++;
-// }
+  if($iterator%$requestByToken==0 && $iterator != 0) {
+
+    $token = loginRequest($username, $password, $client, $iterator);
+  }
+
+  $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $value->vehicleId->id, $iterator);
+  array_push($firstReportArray, $temp);
+  $iterator++;
+}
+
+sleep(20);
+
+$iterator = 0;
+
+foreach($vehicleList as &$value) {
+
+  if($iterator%$requestByToken==0 && $iterator != 0) {
+
+    $token = loginRequest($username, $password, $client, $iterator);
+  }
+
+  $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $value->vehicleId->id, $iterator);
+  array_push($secondReportArray, $temp);
+
+  $iterator++;
+}
+
+var_dump(sumBetweenWeeks(sumStatsChunk($firstReportArray), sumStatsChunk($secondReportArray)));
 
 ?>
