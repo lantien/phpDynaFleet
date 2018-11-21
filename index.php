@@ -1,14 +1,13 @@
 <?php
 
 ini_set('max_execution_time', 600);
-ini_set('memory_limit', '1024M'); // or you could use 1G
+ini_set('memory_limit', '3000M');
+error_reporting(0);
 
 $requestByToken = 19;
 
 $username = "FW100MALHERBE";
 $password = 'fwmalherbe100';
-$from = '2018-10-02T00:00:00';
-$to = '2018-10-04T23:59:59';
 
 $client = new SoapClient("https://api2.dynafleetonline.com/wsdl",
                                             array('proxy_host'     => "pxlyon2.srv.volvo.com",
@@ -76,6 +75,7 @@ function extractUsefulData($client, $arrayData, $token) {
 
   $usefulData[0] = new stdClass();
   $usefulData[1] = new stdClass();
+  $usefulData[2] = new stdClass();
 
   //at 0 truck STATS
   $vehicleIds = $client->getVehiclesV2($params);
@@ -96,11 +96,14 @@ function extractUsefulData($client, $arrayData, $token) {
     $usefulData[0]->{$infos->vehicleId->id}->displayName =
                             $infos->displayName;
 
+    $tempTotalTime = $arrayData[0][$i]->drivingSeconds + $arrayData[0][$i]->idleSeconds
+                  + $arrayData[0][$i]->PTOseconds;
+
     $usefulData[0]->{$infos->vehicleId->id}->totalTime =
-                                    secondsToHours($arrayData[0][$i]->unitOnSeconds);
+                                    secondsToHours($tempTotalTime);
 
     $tempTotalDistance = $arrayData[0][$i]->unitOnMeters/1000;
-    $tempTotalTime = $arrayData[0][$i]->unitOnSeconds;
+
 
     $usefulData[0]->{$infos->vehicleId->id}->brakeCount =
                                     ($arrayData[0][$i]->brakeCount/$tempTotalDistance)*100;
@@ -125,23 +128,40 @@ function extractUsefulData($client, $arrayData, $token) {
                                     ($arrayData[0][$i]->cruiseSeconds/$tempTotalTime)*100;
 
     $usefulData[0]->{$infos->vehicleId->id}->roadOverspeed =
-                                    ($arrayData[0][$i]->roadOverspeedSeconds)*1;
+                                    ($arrayData[0][$i]->fleetOverspeedCentiliters/$arrayData[0][$i]->totalCentiliters);
 
 
     $usefulData[0]->{$infos->vehicleId->id}->engineOverRev =
-                                    ($arrayData[0][$i]->engineOverRevSeconds/$tempTotalTime)*100;
+                                    ($arrayData[0][$i]->engineOverspeedSeconds/$tempTotalTime)*100;
 
     $usefulData[0]->{$infos->vehicleId->id}->engineOverload =
                                     ($arrayData[0][$i]->engineOverloadSeconds/$tempTotalTime)*100;
 
     $usefulData[0]->{$infos->vehicleId->id}->autoMode
-                                  = ($arrayData[0][$i]->lovTransmissionAutoModeSeconds);
+                                  = ($arrayData[0][$i]->lovTransmissionAutoModeSeconds)
+                                  /(($arrayData[0][$i]->lovTransmissionManualModeSeconds)
+                                  +($arrayData[0][$i]->lovTransmissionAutoModeSeconds)
+                                  +($arrayData[0][$i]->lovTransmissionPowerModeSeconds))*100;
 
     $usefulData[0]->{$infos->vehicleId->id}->manualMode
-                                  = ($arrayData[0][$i]->lovTransmissionManualModeSeconds);
+                                  = ($arrayData[0][$i]->lovTransmissionManualModeSeconds)
+                                  /(($arrayData[0][$i]->lovTransmissionManualModeSeconds)
+                                  +($arrayData[0][$i]->lovTransmissionAutoModeSeconds)
+                                  +($arrayData[0][$i]->lovTransmissionPowerModeSeconds))*100;
 
     $usefulData[0]->{$infos->vehicleId->id}->powerMode
-                                  = ($arrayData[0][$i]->lovTransmissionPowerModeSeconds);
+                                  = ($arrayData[0][$i]->lovTransmissionPowerModeSeconds)
+                                  /(($arrayData[0][$i]->lovTransmissionManualModeSeconds)
+                                  +($arrayData[0][$i]->lovTransmissionAutoModeSeconds)
+                                  +($arrayData[0][$i]->lovTransmissionPowerModeSeconds))*100;
+
+    $usefulData[0]->{$infos->vehicleId->id}->outOfGreenAreaLitre
+                                  = (($arrayData[0][$i]->lovEngineOutOfGreenAreaCentiliters/100)/
+                                  ($arrayData[0][$i]->lovEngineOutOfGreenAreaMeters/1000))*100;
+
+    $usefulData[0]->{$infos->vehicleId->id}->engineOverloadLitre
+                                  = (($arrayData[0][$i]->engineOverloadCentilitres/100)/
+                                  ($arrayData[0][$i]->engineOverloadMeters/1000))*100;
     $i++;
   }
 
@@ -163,19 +183,156 @@ function extractUsefulData($client, $arrayData, $token) {
 
     if(property_exists($arrayData[1], $infos->driverId->id)) {
 
-      $usefulData[1]->{$infos->driverId->id}->engineOverload =
+      $usefulData[1]->{$infos->driverId->id}->engineOverloadLitre =
                     (($arrayData[1]->{$infos->driverId->id}->engineOverloadCentilitres/100)/
                     ($arrayData[1]->{$infos->driverId->id}->engineOverloadMeters/1000))*100;
 
-      $usefulData[1]->{$infos->driverId->id}->outOfGreenArea =
+      $usefulData[1]->{$infos->driverId->id}->outOfGreenAreaLitre =
                     (($arrayData[1]->{$infos->driverId->id}->lovEngineOutOfGreenAreaCentiliters/100)/
                     ($arrayData[1]->{$infos->driverId->id}->lovEngineOutOfGreenAreaMeters/1000))*100;
+      //
+      $tempTotalTime = $arrayData[1]->{$infos->driverId->id}->drivingSeconds + $arrayData[1]->{$infos->driverId->id}->idleSeconds
+                    + $arrayData[1]->{$infos->driverId->id}->PTOseconds;
+
+      $usefulData[1]->{$infos->driverId->id}->totalTime =
+                              secondsToHours($tempTotalTime);
+
+      $tempTotalDistance = $arrayData[1]->{$infos->driverId->id}->drivingMeters/1000;
+
+      $usefulData[1]->{$infos->driverId->id}->brakeCount =
+                                      ($arrayData[1]->{$infos->driverId->id}->brakeCount/$tempTotalDistance)*100;
+
+      $usefulData[1]->{$infos->driverId->id}->stopCount =
+                                      ($arrayData[1]->{$infos->driverId->id}->stopCount/$tempTotalDistance)*100;
+
+      $usefulData[1]->{$infos->driverId->id}->idle =
+                                      ($arrayData[1]->{$infos->driverId->id}->idleSeconds/$tempTotalTime)*100;
+
+
+      $usefulData[1]->{$infos->driverId->id}->ecoMode =
+                                      ($arrayData[1]->{$infos->driverId->id}->economySeconds/$tempTotalTime)*100;
+
+      $usefulData[1]->{$infos->driverId->id}->outOfGreenArea =
+                                      ($arrayData[1]->{$infos->driverId->id}->lovEngineOutOfGreenAreaSeconds/$tempTotalTime)*100;
+
+      $usefulData[1]->{$infos->driverId->id}->coasting =
+                                      ($arrayData[1]->{$infos->driverId->id}->coastingSeconds/$tempTotalTime)*100;
+
+      $usefulData[1]->{$infos->driverId->id}->cruise =
+                                      ($arrayData[1]->{$infos->driverId->id}->cruiseSeconds/$tempTotalTime)*100;
+
+      $usefulData[1]->{$infos->driverId->id}->roadOverspeed =
+                                      ($arrayData[1]->{$infos->driverId->id}->fleetOverspeedCentiliters/$arrayData[1]->{$infos->driverId->id}->totalCentiliters);
+
+
+      $usefulData[1]->{$infos->driverId->id}->engineOverRev =
+                                      ($arrayData[1]->{$infos->driverId->id}->engineOverspeedSeconds/$tempTotalTime)*100;
+
+      $usefulData[1]->{$infos->driverId->id}->engineOverload =
+                                      ($arrayData[1]->{$infos->driverId->id}->engineOverloadSeconds/$tempTotalTime)*100;
+
+      $usefulData[1]->{$infos->driverId->id}->autoMode
+                                    = ($arrayData[1]->{$infos->driverId->id}->lovTransmissionAutoModeSeconds)
+                                    /(($arrayData[1]->{$infos->driverId->id}->lovTransmissionManualModeSeconds)
+                                    +($arrayData[1]->{$infos->driverId->id}->lovTransmissionAutoModeSeconds)
+                                    +($arrayData[1]->{$infos->driverId->id}->lovTransmissionPowerModeSeconds))*100;
+
+      $usefulData[1]->{$infos->driverId->id}->manualMode
+                                    = ($arrayData[1]->{$infos->driverId->id}->lovTransmissionManualModeSeconds)
+                                    /(($arrayData[1]->{$infos->driverId->id}->lovTransmissionManualModeSeconds)
+                                    +($arrayData[1]->{$infos->driverId->id}->lovTransmissionAutoModeSeconds)
+                                    +($arrayData[1]->{$infos->driverId->id}->lovTransmissionPowerModeSeconds))*100;
+
+      $usefulData[1]->{$infos->driverId->id}->powerMode
+                                    = ($arrayData[1]->{$infos->driverId->id}->lovTransmissionPowerModeSeconds)
+                                    /(($arrayData[1]->{$infos->driverId->id}->lovTransmissionManualModeSeconds)
+                                    +($arrayData[1]->{$infos->driverId->id}->lovTransmissionAutoModeSeconds)
+                                    +($arrayData[1]->{$infos->driverId->id}->lovTransmissionPowerModeSeconds))*100;
     }
 
 
 
   }
 
+  //make stats driver/trucks at $arrayData[2] + $driverInfos + $vehicleInfos
+
+  foreach ($arrayData[2] as $driverId => $allStats) {
+
+    foreach ($allStats as $vehicleId => $stats) {
+
+      $vin = $vehicleInfos[array_search( $vehicleId, array_column(array_column($vehicleInfos, 'vehicleId'), 'id'))]->vin;
+      $tacho = $driverInfos[array_search( $driverId, array_column(array_column($driverInfos, 'driverId'), 'id'))]->digitalTachoCardId;
+
+
+      $usefulData[2]->{$tacho}->{$vin} = new stdClass();
+
+      $tempTotalTime = $stats->drivingSeconds + $stats->idleSeconds
+                    + $stats->PTOseconds;
+
+      $tempTotalDistance = $stats->unitOnMeters/1000;
+
+      $usefulData[2]->{$tacho}->{$vin}->totalTime =
+                                      secondsToHours($tempTotalTime);
+      //
+      $usefulData[2]->{$tacho}->{$vin}->brakeCount =
+                                      ($stats->brakeCount/$tempTotalDistance)*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->stopCount =
+                                      ($stats->stopCount/$tempTotalDistance)*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->idle =
+                                      ($stats->idleSeconds/$tempTotalTime)*100;
+
+
+      $usefulData[2]->{$tacho}->{$vin}->ecoMode =
+                                      ($stats->economySeconds/$tempTotalTime)*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->outOfGreenArea =
+                                      ($stats->lovEngineOutOfGreenAreaSeconds/$tempTotalTime)*100;
+
+      $$usefulData[2]->{$tacho}->{$vin}->coasting =
+                                      ($stats->coastingSeconds/$tempTotalTime)*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->cruise =
+                                      ($stats->cruiseSeconds/$tempTotalTime)*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->roadOverspeed =
+                                      ($stats->fleetOverspeedCentiliters/$stats->totalCentiliters);
+
+
+      $usefulData[2]->{$tacho}->{$vin}->engineOverRev =
+                                      ($stats->engineOverspeedSeconds/$tempTotalTime)*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->engineOverload =
+                                      ($stats->engineOverloadSeconds/$tempTotalTime)*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->autoMode
+                                    = ($stats->lovTransmissionAutoModeSeconds)
+                                    /(($stats->lovTransmissionManualModeSeconds)
+                                    +($stats->lovTransmissionAutoModeSeconds)
+                                    +($stats->lovTransmissionPowerModeSeconds))*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->manualMode
+                                    = ($stats->lovTransmissionManualModeSeconds)
+                                    /(($stats->lovTransmissionManualModeSeconds)
+                                    +($stats->lovTransmissionAutoModeSeconds)
+                                    +($stats->lovTransmissionPowerModeSeconds))*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->powerMode
+                                    = ($stats->lovTransmissionPowerModeSeconds)
+                                    /(($stats->lovTransmissionManualModeSeconds)
+                                    +($stats->lovTransmissionAutoModeSeconds)
+                                    +($stats->lovTransmissionPowerModeSeconds))*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->outOfGreenAreaLitre
+                                    = (($stats->lovEngineOutOfGreenAreaCentiliters/100)/
+                                    ($stats->lovEngineOutOfGreenAreaMeters/1000))*100;
+
+      $usefulData[2]->{$tacho}->{$vin}->engineOverloadLitre
+                                    = (($stats->engineOverloadCentilitres/100)/
+                                    ($stats->engineOverloadMeters/1000))*100;
+    }
+  }
 
   return $usefulData;
 }
@@ -235,7 +392,30 @@ function sumStatsChunk($rawReport) {
             if(isset($tempDriverId) && !property_exists($tempDriverStats, $tempDriverId)) {
 
               $tempDriverStats->{$tempDriverId} = new stdClass();
-              $tempDrivertTrucksStats->{$tempDriverId} = new stdClass();
+
+            }
+
+            if(isset($tempDriverId) && !property_exists($tempDriverStats, $tempDriverId)) {
+
+              $tempDriverStats->{$tempDriverId} = new stdClass();
+
+            }
+
+            //Si on connais le driver
+            if(isset($tempDriverId)) {
+
+              //Si le driver n'est pas connue on l'ajoute
+              if(!property_exists($tempDrivertTrucksStats, $tempDriverId)) {
+
+                  $tempDrivertTrucksStats->{$tempDriverId}->{$tempVehicleId} = new stdClass();
+
+              } else if (!property_exists($tempDrivertTrucksStats->$tempDriverId, $tempVehicleId)) { //si on ne connait pas le camion
+
+                $tempDrivertTrucksStats->{$tempDriverId}->{$tempVehicleId} = new stdClass();
+
+              }
+
+
             }
 
             if(is_object($data)) {
@@ -247,8 +427,6 @@ function sumStatsChunk($rawReport) {
 
                   if(isset($tempDriverId)) {
 
-                    $tempDrivertTrucksStats->{$tempDriverId}->{$tempVehicleId}
-                        = new stdClass();
 
                     if(!property_exists($tempDriverStats->$tempDriverId, $key)) {
 
@@ -256,6 +434,15 @@ function sumStatsChunk($rawReport) {
                     } else {
 
                       $tempDriverStats->$tempDriverId->{$key} += $value->value;
+                    }
+
+                    if(!property_exists($tempDrivertTrucksStats->$tempDriverId->$tempVehicleId
+                    , $key)) {
+
+                      $tempDrivertTrucksStats->$tempDriverId->$tempVehicleId->{$key} = $value->value;
+                    } else {
+
+                      $tempDrivertTrucksStats->$tempDriverId->$tempVehicleId->{$key} += $value->value;
                     }
 
                   }
@@ -272,22 +459,19 @@ function sumStatsChunk($rawReport) {
 
               }
 
-              $tempDrivertTrucksStats->{$tempDriverId}->{$tempVehicleId}
-                  = $tempDriverStats->{$tempDriverId};
             }
 
+
+            unset($tempDriverId);
           }
         }
 
       $arrayStats[] = $sumStats;
     }
 
-    echo '<pre>';
-    var_dump($tempDrivertTrucksStats);
-    echo '</pre>';
-
   $arrayBundleStats[] = $arrayStats;
   $arrayBundleStats[] = $tempDriverStats;
+  $arrayBundleStats[] = $tempDrivertTrucksStats;
 
 
   return $arrayBundleStats;
@@ -309,7 +493,35 @@ function sumBetweenWeeksObj( $firstWeekObj, $secondWeekObj) {
   return $weekStatsObj;
 }
 
-$week_array = getStartAndEndDate(43,2018);
+function sumBetweenWeeksDriversTrucks($firstWeekObj, $secondWeekObj) {
+
+
+  foreach ($secondWeekObj as $driverId => $allStats) {
+
+    foreach ($allStats as $vehicleId => $stats) {
+
+      if(!property_exists($firstWeekObj, $driverId)) {
+
+        $firstReport->{$driverId} = $allStats;
+
+      } else if(!property_exists($firstWeekObj->$driverId, $vehicleId)) {
+
+        $firstReport->$driverId->{$vehicleId} = $stats;
+      } else {
+
+        foreach ($stats as $key => $value) {
+
+          $firstWeekObj->{$driverId}->{$vehicleId}->{$key} += $value;
+        }
+      }
+    }
+
+  }
+
+  return $firstWeekObj;
+}
+
+$week_array = getStartAndEndDate(45,2018);
 
 $firstReportArray = array();
 $secondReportArray = array();
@@ -330,6 +542,15 @@ $secondReportArray = array();
 // $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[3]->vehicleId->id, $iterator);
 // array_push($firstReportArray, $temp);
 //
+// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[4]->vehicleId->id, $iterator);
+// array_push($firstReportArray, $temp);
+// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[5]->vehicleId->id, $iterator);
+// array_push($firstReportArray, $temp);
+// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[6]->vehicleId->id, $iterator);
+// array_push($firstReportArray, $temp);
+// $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $vehicleList[7]->vehicleId->id, $iterator);
+// array_push($firstReportArray, $temp);
+//
 // //////////////SECOND PART OF THE week_end
 // $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[0]->vehicleId->id, $iterator);
 // array_push($secondReportArray, $temp);
@@ -341,6 +562,18 @@ $secondReportArray = array();
 // array_push($secondReportArray, $temp);
 //
 // $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[3]->vehicleId->id, $iterator);
+// array_push($secondReportArray, $temp);
+//
+// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[4]->vehicleId->id, $iterator);
+// array_push($secondReportArray, $temp);
+//
+// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[5]->vehicleId->id, $iterator);
+// array_push($secondReportArray, $temp);
+//
+// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[6]->vehicleId->id, $iterator);
+// array_push($secondReportArray, $temp);
+//
+// $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $vehicleList[7]->vehicleId->id, $iterator);
 // array_push($secondReportArray, $temp);
 
 
@@ -354,12 +587,12 @@ $secondReportArray = array();
 // echo '<pre>';
 // var_dump(extractUsefulData($client, $finalDatas, $token));
 // echo '</pre>';
-
-
+//
+//
 // echo '<pre>';
 // sumBetweenWeeksObj(sumStatsChunk($firstReportArray)[1], sumStatsChunk($secondReportArray)[1]);
 // echo '</pre>';
-
+//
 // echo '<pre>';
 // var_dump(sumBetweenWeeks(sumStatsChunk($firstReportArray)[0], sumStatsChunk($secondReportArray)[0]));
 // echo '</pre>';
@@ -379,28 +612,45 @@ foreach($vehicleList as &$value) {
   $iterator++;
 }
 
-sleep(20);
+sleep(30);
 
-// $iterator = 0;
-//
-// foreach($vehicleList as &$value) {
-//
-//   if($iterator%$requestByToken==0 && $iterator != 0) {
-//
-//     $token = loginRequest($username, $password, $client, $iterator);
-//   }
-//
-//   $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $value->vehicleId->id, $iterator);
-//   array_push($secondReportArray, $temp);
-//
-//   $iterator++;
-// }
+$iterator = 0;
+
+foreach($vehicleList as &$value) {
+
+  if($iterator%$requestByToken==0 && $iterator != 0) {
+
+    $token = loginRequest($username, $password, $client, $iterator);
+  }
+
+  $temp = reportVehicleRequest($token, $client, $week_array['week_mid'], $week_array['week_end'], $value->vehicleId->id, $iterator);
+  array_push($secondReportArray, $temp);
+
+  $iterator++;
+}
 //TRUCK STATS
 //var_dump(sumBetweenWeeks(sumStatsChunk($firstReportArray), sumStatsChunk($secondReportArray)));
 
-sumStatsChunk($firstReportArray);
+// echo '<pre>';
+// var_dump(sumBetweenWeeks(sumStatsChunk($firstReportArray)[0], sumStatsChunk($secondReportArray)[0]));
+// echo '</pre>';
 
-sumStatsChunk($secondReportArray);
+// sumStatsChunk($firstReportArray);
+
+$sumFirstChunk = sumStatsChunk($firstReportArray);
+$sumSecondChunk = sumStatsChunk($secondReportArray);
+
+$finalDatas = array();
+
+$finalDatas[] = sumBetweenWeeks($sumFirstChunk[0], $sumSecondChunk[0]);
+
+$finalDatas[] = sumBetweenWeeksObj($sumFirstChunk[1], $sumSecondChunk[1]);
+
+$finalDatas[] = sumBetweenWeeksDriversTrucks($sumFirstChunk[2], $sumSecondChunk[2]);
+
+echo '<pre>';
+var_dump(extractUsefulData($client, $finalDatas, $token));
+echo '</pre>';
 
 
 ?>
