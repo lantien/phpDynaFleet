@@ -3,7 +3,7 @@ ini_set('max_execution_time', 900);
 ini_set('memory_limit', '2048M');
 
 function loginRequest($username, $password, $client) {
-  $params = array('Api_LoginLoginTO_1' => array('gmtOffset' => array('value' => '1'), 'password' => $password,
+  $params = array('Api_LoginLoginTO_1' => array('gmtOffset' => array('value' => '0'), 'password' => $password,
                             'username' => $username));
 
   $res = $client->login($params);
@@ -35,15 +35,16 @@ function reportVehicleRequest($token, $client, $from, $to, $vehicleId, $iterator
 function getStartAndEndDate($week, $year) {
   $dto = new DateTime();
   $dto->setISODate($year, $week);
-  $dto->setTime(0, 0, 0);
+  $dto->modify('-1 days');
+  $dto->setTime(23, 0, 0);
   $ret['week_start'] = $dto->format('Y-m-d H:i:s');
   $dto->modify('+3 days');
   $dto->setTime(22, 59, 59);
   $ret['week_mid'] = $dto->format('Y-m-d H:i:s');
 
-  $dto->setTime(23, 00, 00);
+  $dto->setTime(23, 0, 0);
   $ret['week_midForEnd'] = $dto->format('Y-m-d H:i:s');
-  $dto->modify('+3 days');
+  $dto->modify('+4 days');
   $dto->setTime(22, 59, 59);
   $ret['week_end'] = $dto->format('Y-m-d H:i:s');
 
@@ -734,8 +735,8 @@ function getWeekData($username, $password, $week, $year) {
     }
 
     $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $value->vehicleId->id, $iterator);
-
     array_push($firstReportArray, $temp);
+
     $iterator++;
   }
 
