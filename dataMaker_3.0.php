@@ -1,5 +1,6 @@
 <?php
 ini_set('max_execution_time', 900);
+ini_set('default_socket_timeout', 600);
 ini_set('memory_limit', '2048M');
 
 function loginRequest($username, $password, $client) {
@@ -699,7 +700,13 @@ function sumBetweenWeeksDriversTrucks($firstWeekObj, $secondWeekObj) {
 
           foreach ($stats as $key => $value) {
 
-            $firstWeekObj->{$driverId}->{$vehicleId}->{$key} += $value;
+            if(property_exists($firstWeekObj->$driverId->$vehicleId, $key)) {
+
+              $firstWeekObj->{$driverId}->{$vehicleId}->{$key} += $value;
+            } else {
+
+              $firstWeekObj->{$driverId}->{$vehicleId}->{$key} = $value;
+            }
           }
         }
       }
@@ -732,6 +739,7 @@ function getWeekData($username, $password, $week, $year) {
     if($iterator%$requestByToken==0 && $iterator != 0) {
 
       $token = loginRequest($username, $password, $client, $iterator);
+      sleep(2);
     }
 
     $temp = reportVehicleRequest($token, $client, $week_array['week_start'], $week_array['week_mid'], $value->vehicleId->id, $iterator);
